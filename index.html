@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subtitle Translator</title>
+    <meta name="description" content="Translate subtitles easily from English to Sinhala, Tamil, French, and more. Upload your .srt or .vtt file and get an instant translation.">
+    <meta name="keywords" content="subtitle translator, SRT translator, Sinhala subtitles, translate subtitles, subtitle conversion">
+    <meta name="author" content="helalk.com">
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background: #f9f9f9; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 20px; box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1); border-radius: 10px; }
+        select, button, input { margin: 10px 0; padding: 10px; width: 100%; border: 1px solid #ddd; border-radius: 5px; }
+        button { background: #007bff; color: white; border: none; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        #progress-container { display: none; margin-top: 10px; }
+        progress { width: 100%; }
+        .scroll-box { max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; background: #f4f4f4; text-align: left; white-space: pre-wrap; }
+        #saveBtn { display: none; background: #28a745; }
+        #saveBtn:hover { background: #218838; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Subtitle Translator</h2>
+        <input type="file" id="fileInput" accept=".srt,.vtt" />
+        <select id="langSelect">
+            <option value="si">Sinhala</option>
+            <option value="ta">Tamil</option>
+            <option value="fr">French</option>
+            <option value="de">German</option>
+        </select>
+        <button onclick="translateSubtitles()">Translate</button>
+        
+        <h3>Subtitle:</h3>
+        <div class="scroll-box" id="subtitleBox">(No file uploaded yet)</div>
+        
+        <div id="progress-container">
+            <p>Translating...</p>
+            <progress id="progressBar" value="0" max="100"></progress>
+        </div>
+        
+        <button id="saveBtn" onclick="downloadFile()">Save Translated SRT</button>
+    </div>
+    
+    <script>
+        let originalFileName = "";
+        let translatedContent = "";
+        
+        document.getElementById("fileInput").addEventListener("change", function() {
+            const file = this.files[0];
+            if (file) {
+                originalFileName = file.name.replace(/\.[^/.]+$/, "");
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    document.getElementById("subtitleBox").textContent = event.target.result;
+                };
+                reader.readAsText(file);
+            }
+        });
+        
+        async function translateSubtitles() {
+            const fileInput = document.getElementById("fileInput");
+            const lang = document.getElementById("langSelect").value;
+            if (!fileInput.files.length) return alert("Please upload a subtitle file.");
+            
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            reader.onload = async function(event) {
+                const text = event.target.result;
+                const lines = text.split("\n");
+                let translatedLines = [];
+                document.getElementById("progress-container").style.display = "block";
+                
+                for (let i = 0; i < lines.length; i++) {
+                    if (lines[i].trim() && !lines[i].match(/^[0-9]+$/) && !lines[i].includes("-->")) {
+                        let translatedText = await translateText(lines[i], lang);
+                        translatedLines.push(translatedText);
+                    } else {
+                        translatedLines.push(lines[i]);
+                    }
+                    document.getElementById("subtitleBox").textContent = translatedLines.join("\n");
+                    document.getElementById("progressBar").value = (i / lines.length) * 100;
+                }
+                
+                translatedContent = translatedLines.join("\n");
+                document.getElementById("progress-container").style.display = "none";
+                document.getElementById("saveBtn").style.display = "inline";
+            };
+            reader.readAsText(file);
+        }
+        
+        async function translateText(text, toLang) {
+            const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${toLang}&dt=t&q=${encodeURIComponent(text)}`;
+            try {
+                let response = await fetch(url);
+                let data = await response.json();
+                return data[0][0][0];
+            } catch (error) {
+                console.error("Translation error:", error);
+                return text;
+            }
+        }
+        
+        function downloadFile() {
+            const blob = new Blob([translatedContent], { type: "text/plain" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `${originalFileName}-helalk.com.srt`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
